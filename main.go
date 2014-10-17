@@ -20,34 +20,35 @@ import (
 
 var configPath = "/etc/jibber.conf"
 
-type WebHookHandler struct {
+var reIndent = regexp.MustCompile(`(?m)^`)
+
+type webHookHandler struct {
 	TplDir  string
 	MainTpl string
 	Output  io.Writer
 }
 
-type StdoutOutput struct {
-}
+type stdoutOutput struct{}
 
-func (s StdoutOutput) Write(p []byte) (n int, err error) {
+func (s stdoutOutput) Write(p []byte) (n int, err error) {
 	return os.Stdout.Write(p)
 }
 
-type EjabberdModRest struct {
+type ejabberModRest struct {
 	Url  string
 	From string
 	To   string
 }
 
-type EjabberdMsg struct {
+type ejabberdMsg struct {
 	XMLName xml.Name `xml:"message"`
 	From    string   `xml:"from,attr"`
 	To      string   `xml:"to,attr"`
 	Body    []byte   `xml:"body"`
 }
 
-func (e EjabberdModRest) Write(p []byte) (n int, err error) {
-	xmlNode := EjabberdMsg{From: e.From, To: e.To, Body: p}
+func (output ejabberModRest) Write(p []byte) (n int, err error) {
+	xmlNode := ejabberdMsg{From: output.From, To: output.To, Body: p}
 
 	msg, err := xml.Marshal(&xmlNode)
 	if err != nil {
@@ -55,12 +56,10 @@ func (e EjabberdModRest) Write(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	http.Post(e.Url, "application/xml", bytes.NewBuffer(msg))
+	http.Post(output.Url, "application/xml", bytes.NewBuffer(msg))
 
 	return len(p), nil
 }
-
-var reIndent = regexp.MustCompile(`(?m)^`)
 
 var tplFuncs = template.FuncMap{
 	"indent": func(amount int, val string) string {
@@ -72,7 +71,7 @@ var tplFuncs = template.FuncMap{
 	},
 }
 
-func (h WebHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	result := map[string]interface{}{}
 	err := json.NewDecoder(req.Body).Decode(&result)
 	if err != nil {
@@ -119,16 +118,16 @@ func main() {
 	var output io.Writer
 	switch {
 	case args["stdout"]:
-		output = StdoutOutput{}
+		output = stdoutOutput{}
 	case args["mod_rest"]:
-		output = EjabberdModRest{
+		output = ejabberModRest{
 			Url:  args["-u"].(string),
 			From: args["-f"].(string),
 			To:   args["-t"].(string),
 		}
 	}
 
-	http.Handle("/", WebHookHandler{
+	http.Handle("/", webHookHandler{
 		TplDir:  args["--tpl-dir"].(string),
 		MainTpl: args["--tpl"].(string),
 		Output:  output,
