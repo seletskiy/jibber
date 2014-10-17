@@ -18,7 +18,7 @@ import (
 	"github.com/seletskiy/tplutil"
 )
 
-var configPath = "/etc/jibber.conf"
+var configPath = "/etc/jibber/jibber.conf"
 
 var reIndent = regexp.MustCompile(`(?m)^`)
 
