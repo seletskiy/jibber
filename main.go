@@ -144,9 +144,8 @@ Only ejabberd mod_rest currently supported because of it's simplest way
 to send jabber message. You should consider using it.
 	
 Usage:
-  jibber stdout
-  jibber mod_rest -u MOD-REST-URL -t SEND-TO [-f SEND-FROM]
-  jibber [options]
+  jibber [options] stdout
+  jibber [options] mod_rest -u MOD-REST-URL -t SEND-TO [-f SEND-FROM]
 
 Options:
   -h --help         Show this help message.
