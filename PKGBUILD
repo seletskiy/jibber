@@ -48,5 +48,5 @@ package() {
     cp "$srcdir/.go/bin/$pkgname" "$pkgdir/usr/bin"
     cp -r "$srcdir/$pkgname/tpl" "$pkgdir/etc/jibber/"
     cp -r "$srcdir/$pkgname/jibber.conf" "$pkgdir/etc/jibber/jibber.conf"
-    cp -r "$srcdir/jibber.service" "$pkgdir/etc/systemd/system/"
+    cp -r $(readlink -f "$srcdir/jibber.service") "$pkgdir/etc/systemd/system/"
 }
