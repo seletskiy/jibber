@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"crypto/tls"
 	"encoding/json"
 	"encoding/xml"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -15,6 +17,9 @@ import (
 	"text/template"
 
 	"github.com/docopt/docopt-go"
+
+	// TODO: fix after PR is merged: https://github.com/mattn/go-xmpp/pull/35
+	"github.com/seletskiy/go-xmpp"
 	"github.com/seletskiy/tplutil"
 )
 
@@ -23,32 +28,43 @@ var configPath = "/etc/jibber/jibber.conf"
 var reIndent = regexp.MustCompile(`(?m)^`)
 
 type webHookHandler struct {
-	TplDir  string
-	MainTpl string
-	Output  io.Writer
+	tplDir  string
+	mainTpl string
+	output  io.Writer
+	debug   bool
 }
 
 type stdoutOutput struct{}
+
+type xmppCommon struct {
+	to   string
+	join bool
+	nick string
+	opts xmpp.Options
+	talk *xmpp.Client
+}
 
 func (s stdoutOutput) Write(p []byte) (n int, err error) {
 	return os.Stdout.Write(p)
 }
 
 type ejabberModRest struct {
-	Url  string
-	From string
-	To   string
-}
-
-type ejabberdMsg struct {
-	XMLName xml.Name `xml:"message"`
-	From    string   `xml:"from,attr"`
-	To      string   `xml:"to,attr"`
-	Body    []byte   `xml:"body"`
+	url  string
+	from string
+	to   string
 }
 
 func (output ejabberModRest) Write(p []byte) (n int, err error) {
-	xmlNode := ejabberdMsg{From: output.From, To: output.To, Body: p}
+	xmlNode := struct {
+		XMLName xml.Name `xml:"message"`
+		from    string   `xml:"from,attr"`
+		to      string   `xml:"to,attr"`
+		body    []byte   `xml:"body"`
+	}{
+		from: output.from,
+		to:   output.to,
+		body: p,
+	}
 
 	msg, err := xml.Marshal(&xmlNode)
 	if err != nil {
@@ -56,7 +72,42 @@ func (output ejabberModRest) Write(p []byte) (n int, err error) {
 		return 0, err
 	}
 
-	http.Post(output.Url, "application/xml", bytes.NewBuffer(msg))
+	http.Post(output.url, "application/xml", bytes.NewBuffer(msg))
+
+	return len(p), nil
+}
+
+func (output *xmppCommon) Connect() error {
+	talk, err := output.opts.NewClient()
+	if err != nil {
+		return err
+	}
+
+	go func() {
+		for {
+			if _, err := talk.Recv(); err != nil {
+				// just ignore everything
+				return
+			}
+		}
+	}()
+
+	output.talk = talk
+
+	if output.join {
+		talk.JoinMUC(output.to, output.nick)
+		log.Printf("xmpp: joined <%s> as <%s>\n", output.to, output.nick)
+	}
+
+	return nil
+}
+
+func (output xmppCommon) Write(p []byte) (n int, err error) {
+	output.talk.Send(xmpp.Chat{
+		Remote: output.to,
+		Type:   "groupchat",
+		Text:   string(p),
+	})
 
 	return len(p), nil
 }
@@ -81,13 +132,18 @@ func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 
 	tpl, err := tplutil.ParseGlob(
-		template.New(h.MainTpl).Funcs(tplutil.Last).Funcs(tplFuncs),
-		filepath.Join(h.TplDir, "*.tpl"),
+		template.New(h.mainTpl).Funcs(tplutil.Last).Funcs(tplFuncs),
+		filepath.Join(h.tplDir, "*.tpl"),
 	)
 	if err != nil {
 		log.Println("error while parsing template:", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
+	}
+
+	if h.debug {
+		prettyJson, _ := json.MarshalIndent(result, "", "  ")
+		fmt.Fprint(os.Stderr, string(prettyJson)+"\n")
 	}
 
 	msg, err := tplutil.ExecuteToString(tpl, result)
@@ -102,7 +158,7 @@ func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	_, err = h.Output.Write([]byte(msg))
+	_, err = h.output.Write([]byte(msg))
 	if err != nil {
 		log.Println("error writing to output:", err)
 		w.WriteHeader(http.StatusInternalServerError)
@@ -121,16 +177,48 @@ func main() {
 		output = stdoutOutput{}
 	case args["mod_rest"]:
 		output = ejabberModRest{
-			Url:  args["-u"].(string),
-			From: args["-f"].(string),
-			To:   args["-t"].(string),
+			url:  args["--url"].(string),
+			from: args["--from"].(string),
+			to:   args["--to"].(string),
 		}
+	case args["xmpp"]:
+		useTLS := args["--start-tls"].(bool) || args["--no-tls"].(bool)
+		xmppOutput := xmppCommon{
+			to:   args["--to"].(string),
+			join: args["--join"].(bool),
+			nick: args["--nick"].(string),
+			opts: xmpp.Options{
+				Host:            args["--host"].(string),
+				User:            args["--user"].(string),
+				Password:        args["--pass"].(string),
+				NoTLS:           useTLS,
+				Debug:           args["--debug"].(bool),
+				StartTLS:        args["--start-tls"].(bool),
+				NoVerifyTLSHost: args["--no-verify-tls-host"].(bool),
+				Session:         true,
+			},
+		}
+
+		if useTLS {
+			xmpp.DefaultConfig = tls.Config{
+				ServerName:         strings.Split(xmppOutput.opts.Host, ":")[0],
+				InsecureSkipVerify: true,
+			}
+		}
+
+		err := xmppOutput.Connect()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		output = xmppOutput
 	}
 
 	http.Handle("/", webHookHandler{
-		TplDir:  args["--tpl-dir"].(string),
-		MainTpl: args["--tpl"].(string),
-		Output:  output,
+		tplDir:  args["--tpl-dir"].(string),
+		mainTpl: args["--tpl"].(string),
+		output:  output,
+		debug:   args["--debug"].(bool),
 	})
 
 	log.Println("listening on", args["-l"])
@@ -140,26 +228,38 @@ func main() {
 func parseArgs() map[string]interface{} {
 	usage := `Jira to Jabber Notification Bridge.
 
-Only ejabberd mod_rest currently supported because of it's simplest way
-to send jabber message. You should consider using it.
+You should specify 'backend' as first option. Supported are:
+	* stdout - just print formed message to stdout, for debug.
+	* mod_rest - use ejabberd mod_rest module (does not support MUC, but doesn't require auth).
+	* xmpp - full blown XMPP client (support MUC).
 	
 Usage:
   jibber [options] stdout
-  jibber [options] mod_rest -u MOD-REST-URL -t SEND-TO [-f SEND-FROM]
+  jibber [options] xmpp --user USERNAME --pass PASSWORD --to SEND-TO [--join]
+  jibber [options] mod_rest --url MOD-REST-URL --to SEND-TO [--from SEND-FROM]
 
 Options:
-  -h --help         Show this help message.
-  -u MOD-REST-URL   Use ejabberd mod_rest URL [default: http://localhost:5280/rest].
-  -t SEND-TO        Jabber ID send message to (most useful with rooms).
-  -f SEND-FROM      Jabber ID send from (can be any) [default: jira-notifier].
-  -l LISTEN-ADDR    HTTP addr:port to listen to [default: :65432].
-  --tpl-dir DIR     Template dir to form messages [default: ./tpl].
-  --tpl TPL-NAME    Main template to start from [default: main.tpl].`
+  -h --help             Show this help message.
+  --url MOD-REST-URL    {mod_rest} Use ejabberd mod_rest URL [default: http://localhost:5280/rest].
+  --from SEND-FROM      {mod_rest} Jabber ID send from (can be any) [default: jira-notifier].
+  --to SEND-TO          {mod_rest,xmpp} Jabber ID send message to (most useful with rooms).
+  --host HOSTNAME       {xmpp} Jabber server hostname.
+  --user USERNAME       {xmpp} Username to log in.
+  --pass PASSWORD       {xmpp} Password for that username.
+  --no-tls              {xmpp} Do not use TLS [default: false].
+  --no-verify-tls-host  {xmpp} Do not verify certificate hostname [default: false].
+  --start-tls           {xmpp} Use STARTTLS if server support it [default: false].
+  --nick NICK           {xmpp} Use nick in MUC [default: Jira].
+  --join                {xmpp} Join to room (specified as --to) [default: false].
+  --debug               {xmpp} Display debug information (XML) to stdout [default: false].
+                        It will also print raw JSON request from Jira.
+  -l LISTEN-ADDR        HTTP addr:port to listen to [default: :65432].
+  --tpl-dir DIR         Template dir to form messages [default: ./tpl].
+  --tpl TPL-NAME        Main template to start from [default: main.tpl].`
 
 	rawArgs := make([]string, 0)
 	conf, err := ioutil.ReadFile(configPath)
 	if err == nil {
-		log.Println("args are read from", configPath)
 		confLines := strings.Split(string(conf), "\n")
 		for _, line := range confLines {
 			line = strings.TrimSpace(line)

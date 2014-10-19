@@ -44,21 +44,78 @@ line argument. Like this:
 jibber --tpl-dir=./tpl/
 ```
 
+Templates
+=========
+
+jibber uses extensive use of golang templates, so no code recompilcation and
+no daemon restart is needed to change style of reported messages.
+
+Template syntax is slightly enhanced, consider read about it:
+https://godoc.org/github.com/seletskiy/tplutil
+
+jibber will pass JSON fields hierarchy as is to the template. You
+can use `--debug` flag to see what's coming from Jira in pretty-pring format
+on the stderr.
+
+See default message formats and how they are formatted in the `tpl/` dir.
+
 Example configuration to send jabber notifications
 ---------------------------------------------------
 
 ### Configure jibber
+#### Using usual xmpp:
+
+`/etc/jibber/jibber.conf`:
+
+```
+xmpp
+
+--user
+    bot@your.host.name
+
+--pass
+    bot-password
+
+--to
+    target-room@conference.your.host.name
+
+--host
+    your.host.name:5222
+
+--join
+```
+
+If you see strange errors about TLS and stuff try to use oen of following
+options:
+
+* `--no-tls` --- disable TLS completely, not recommended, server may not
+support that mode;
+* `--start-tls` --- use TLS but only when server say about it.
+* `--no-verify-tls-host` --- skip hostname validation in certificate check.
+* `--debug` --- you will see complete dump of answers from server in XML.
+
+#### Using mod_rest
 
 `/etc/jibber/jibber.conf`:
 
 ```
 mod_rest
 
--u
-  http://your-ejabberd-server:5280/rest/
+--url
+    http://your-ejabberd-server:5280/rest/
 
--t
-  your-target-room@bla.bla.bla
+--to
+    target-room@conference.your.host.name
+```
+
+#### For debugging
+
+`/etc/jibber/jibber.conf`:
+
+```
+stdout
+
+--debug
 ```
 
 Launch jibber to listen (default port is 65432).
