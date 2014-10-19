@@ -64,9 +64,9 @@ Example configuration to send jabber notifications
 ---------------------------------------------------
 
 ### Configure jibber
-#### Using usual xmpp:
+#### Using usual xmpp
 
-`/etc/jibber/jibber.conf`:
+`/etc/jibber/jibber.conf`
 
 ```
 xmpp
@@ -86,18 +86,18 @@ xmpp
 --join
 ```
 
-If you see strange errors about TLS and stuff try to use oen of following
+If you see strange errors about TLS and stuff try to use one of following
 options:
 
 * `--no-tls` --- disable TLS completely, not recommended, server may not
 support that mode;
-* `--start-tls` --- use TLS but only when server say about it.
-* `--no-verify-tls-host` --- skip hostname validation in certificate check.
-* `--debug` --- you will see complete dump of answers from server in XML.
+* `--start-tls` --- use TLS but only when server say about it;
+* `--no-verify-tls-host` --- skip hostname validation in certificate check;
+* `--debug` --- you will see complete dump of answers from server in XML;
 
 #### Using mod_rest
 
-`/etc/jibber/jibber.conf`:
+`/etc/jibber/jibber.conf`
 
 ```
 mod_rest
@@ -111,7 +111,7 @@ mod_rest
 
 #### For debugging
 
-`/etc/jibber/jibber.conf`:
+`/etc/jibber/jibber.conf`
 
 ```
 stdout
