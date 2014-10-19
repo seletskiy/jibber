@@ -182,7 +182,7 @@ func main() {
 			to:   args["--to"].(string),
 		}
 	case args["xmpp"]:
-		useTLS := args["--start-tls"].(bool) || args["--no-tls"].(bool)
+		useTLS := args["--start-tls"].(bool) || !args["--no-tls"].(bool)
 		xmppOutput := xmppCommon{
 			to:   args["--to"].(string),
 			join: args["--join"].(bool),
