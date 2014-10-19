@@ -254,7 +254,7 @@ Options:
   --debug               {xmpp} Display debug information (XML) to stdout [default: false].
                         It will also print raw JSON request from Jira.
   -l LISTEN-ADDR        HTTP addr:port to listen to [default: :65432].
-  --tpl-dir DIR         Template dir to form messages [default: ./tpl].
+  --tpl-dir DIR         Template dir to form messages [default: /etc/jibber/tpl].
   --tpl TPL-NAME        Main template to start from [default: main.tpl].`
 
 	rawArgs := make([]string, 0)
