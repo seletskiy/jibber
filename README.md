@@ -124,7 +124,8 @@ Launch jibber to listen (default port is 65432).
 ### Configure Jira
 
 Go to Administration/System/WebHooks and add WebHook, like this:
-![WebHook example](https://cloud.githubusercontent.com/assets/674812/4677167/eb99fdc6-55e3-11e4-9e87-3ecab3f32651.png)
+
+![WebHook example](https://cloud.githubusercontent.com/assets/674812/4693573/ea51b96c-57a1-11e4-9f4f-6ea45f4a749e.png)
 
 After that, you should see notifications in your specified room when issues in
 specified project are changed.
