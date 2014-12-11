@@ -18,8 +18,7 @@ import (
 
 	"github.com/docopt/docopt-go"
 
-	// TODO: fix after PR is merged: https://github.com/mattn/go-xmpp/pull/35
-	"github.com/seletskiy/go-xmpp"
+	"github.com/mattn/go-xmpp"
 	"github.com/seletskiy/tplutil"
 )
 
@@ -103,13 +102,16 @@ func (output *xmppCommon) Connect() error {
 }
 
 func (output xmppCommon) Write(p []byte) (n int, err error) {
-	output.talk.Send(xmpp.Chat{
+	msgType := "normal"
+	if output.join {
+		msgType = "groupchat"
+	}
+
+	return output.talk.Send(xmpp.Chat{
 		Remote: output.to,
-		Type:   "groupchat",
+		Type:   msgType,
 		Text:   string(p),
 	})
-
-	return len(p), nil
 }
 
 var tplFuncs = template.FuncMap{
@@ -160,9 +162,8 @@ func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	_, err = h.output.Write([]byte(msg))
 	if err != nil {
-		log.Println("error writing to output:", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		return
+		log.Fatal("error writing to output:", err)
 	}
 
 	w.WriteHeader(http.StatusOK)
@@ -182,33 +183,38 @@ func main() {
 			to:   args["--to"].(string),
 		}
 	case args["xmpp"]:
-		useTLS := args["--start-tls"].(bool) || !args["--no-tls"].(bool)
+		noTLS := args["--start-tls"].(bool) || args["--no-tls"].(bool)
+		log.Printf("%#v", args)
 		xmppOutput := xmppCommon{
 			to:   args["--to"].(string),
 			join: args["--join"].(bool),
 			nick: args["--nick"].(string),
 			opts: xmpp.Options{
-				Host:            args["--host"].(string),
-				User:            args["--user"].(string),
-				Password:        args["--pass"].(string),
-				NoTLS:           useTLS,
-				Debug:           args["--debug"].(bool),
-				StartTLS:        args["--start-tls"].(bool),
-				NoVerifyTLSHost: args["--no-verify-tls-host"].(bool),
-				Session:         true,
+				Host:     args["--host"].(string),
+				User:     args["--user"].(string),
+				Password: args["--pass"].(string),
+				NoTLS:    noTLS,
+				Debug:    args["--debug"].(bool),
+				StartTLS: args["--start-tls"].(bool),
+				Session:  true,
 			},
 		}
 
-		if useTLS {
-			xmpp.DefaultConfig = tls.Config{
-				ServerName:         strings.Split(xmppOutput.opts.Host, ":")[0],
-				InsecureSkipVerify: true,
-			}
+		xmpp.DefaultConfig = tls.Config{
+			ServerName:         strings.Split(xmppOutput.opts.Host, ":")[0],
+			InsecureSkipVerify: args["--no-verify-tls-host"].(bool),
 		}
 
 		err := xmppOutput.Connect()
 		if err != nil {
 			log.Fatal(err)
+		}
+
+		if args["--presence"] != nil {
+			_, err := xmppOutput.Write([]byte(args["--presence"].(string)))
+			if err != nil {
+				log.Fatal(err)
+			}
 		}
 
 		output = xmppOutput
@@ -235,7 +241,7 @@ You should specify 'backend' as first option. Supported are:
 	
 Usage:
   jibber [options] stdout
-  jibber [options] xmpp --user USERNAME --pass PASSWORD --to SEND-TO [--join]
+  jibber [options] xmpp --host HOSTNAME --user USERNAME --pass PASSWORD --to SEND-TO [--join]
   jibber [options] mod_rest --url MOD-REST-URL --to SEND-TO [--from SEND-FROM]
 
 Options:
@@ -252,6 +258,7 @@ Options:
   --nick NICK           {xmpp} Use nick in MUC [default: Jira].
   --join                {xmpp} Join to room (specified as --to) [default: false].
   --debug               {xmpp} Display debug information (XML) to stdout [default: false].
+  --presence MSG        {xmpp} Send presence message when connect is successfull.
                         It will also print raw JSON request from Jira.
   -l LISTEN-ADDR        HTTP addr:port to listen to [default: :65432].
   --tpl-dir DIR         Template dir to form messages [default: /etc/jibber/tpl].
