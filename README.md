@@ -1,6 +1,5 @@
-Jibber is simple tool which can be used with Jira WebHook to send
-notifications about changes in issues directly to XMPP room. Just in case
-you do not want HipChat.
+Jibber is simple tool which can be used with any WebHook (for example, with Jira WebHooks) to transform
+hook payload to jabber messages. Very useful with Jira. Just in case you do not want HipChat.
 
 Installation
 ============
