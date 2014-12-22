@@ -41,6 +41,7 @@ type xmppCommon struct {
 	nick string
 	opts xmpp.Options
 	talk *xmpp.Client
+	tpl  map[string]*template.Template
 }
 
 func (s stdoutOutput) Write(p []byte) (n int, err error) {
@@ -101,7 +102,7 @@ func (output *xmppCommon) Connect() error {
 	return nil
 }
 
-func (output xmppCommon) Write(p []byte) (n int, err error) {
+func (output *xmppCommon) Write(p []byte) (n int, err error) {
 	msgType := "normal"
 	if output.join {
 		msgType = "groupchat"
@@ -160,6 +161,15 @@ func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
+	if output, ok := h.output.(*xmppCommon); ok && !output.join {
+		output.to, err = tplutil.ExecuteToString(output.tpl["normal"], result)
+		if err != nil {
+			log.Println("error while executing tpl:", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+	}
+
 	_, err = h.output.Write([]byte(msg))
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -185,7 +195,8 @@ func main() {
 	case args["xmpp"]:
 		noTLS := args["--start-tls"].(bool) || args["--no-tls"].(bool)
 		log.Printf("%#v", args)
-		xmppOutput := xmppCommon{
+
+		xmppOutput := &xmppCommon{
 			to:   args["--to"].(string),
 			join: args["--join"].(bool),
 			nick: args["--nick"].(string),
@@ -217,6 +228,15 @@ func main() {
 			}
 		}
 
+		if !xmppOutput.join {
+			xmppOutput.tpl = make(map[string]*template.Template)
+			xmppOutput.tpl["normal"], err = template.New("normal").Parse(xmppOutput.to)
+			if err != nil {
+				log.Println("error while parsing template:", err)
+				return
+			}
+		}
+
 		output = xmppOutput
 	}
 
@@ -238,7 +258,7 @@ You should specify 'backend' as first option. Supported are:
 	* stdout - just print formed message to stdout, for debug.
 	* mod_rest - use ejabberd mod_rest module (does not support MUC, but doesn't require auth).
 	* xmpp - full blown XMPP client (support MUC).
-	
+
 Usage:
   jibber [options] stdout
   jibber [options] xmpp --host HOSTNAME --user USERNAME --pass PASSWORD --to SEND-TO [--join]
@@ -249,6 +269,7 @@ Options:
   --url MOD-REST-URL    {mod_rest} Use ejabberd mod_rest URL [default: http://localhost:5280/rest].
   --from SEND-FROM      {mod_rest} Jabber ID send from (can be any) [default: jira-notifier].
   --to SEND-TO          {mod_rest,xmpp} Jabber ID send message to (most useful with rooms).
+                        It can also be a template.
   --host HOSTNAME       {xmpp} Jabber server hostname.
   --user USERNAME       {xmpp} Username to log in.
   --pass PASSWORD       {xmpp} Password for that username.
@@ -279,7 +300,7 @@ Options:
 
 	rawArgs = append(rawArgs, os.Args[1:]...)
 
-	args, _ := docopt.Parse(usage, rawArgs, true, "jibber v1.0", false)
+	args, _ := docopt.Parse(usage, rawArgs, true, "jibber v1.1", false)
 
 	return args
 }
