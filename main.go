@@ -196,18 +196,25 @@ func main() {
 		noTLS := args["--start-tls"].(bool) || args["--no-tls"].(bool)
 		log.Printf("%#v", args)
 
+		statusMsg := ""
+		if args["--status-msg"] != nil {
+			statusMsg = args["--status-msg"].(string)
+		}
+
 		xmppOutput := &xmppCommon{
 			to:   args["--to"].(string),
 			join: args["--join"].(bool),
 			nick: args["--nick"].(string),
 			opts: xmpp.Options{
-				Host:     args["--host"].(string),
-				User:     args["--user"].(string),
-				Password: args["--pass"].(string),
-				NoTLS:    noTLS,
-				Debug:    args["--debug"].(bool),
-				StartTLS: args["--start-tls"].(bool),
-				Session:  true,
+				Host:          args["--host"].(string),
+				User:          args["--user"].(string),
+				Password:      args["--pass"].(string),
+				NoTLS:         noTLS,
+				Debug:         args["--debug"].(bool),
+				StartTLS:      args["--start-tls"].(bool),
+				Session:       true,
+				Status:        args["--status"].(string),
+				StatusMessage: statusMsg,
 			},
 		}
 
@@ -279,6 +286,8 @@ Options:
   --nick NICK           {xmpp} Use nick in MUC [default: Jira].
   --join                {xmpp} Join to room (specified as --to) [default: false].
   --debug               {xmpp} Display debug information (XML) to stdout [default: false].
+  --status STATUS       {xmpp} Status to set [default: online].
+  --status-msg MSG      {xmpp} Status message to set.
   --presence MSG        {xmpp} Send presence message when connect is successfull.
                         It will also print raw JSON request from Jira.
   -l LISTEN-ADDR        HTTP addr:port to listen to [default: :65432].
