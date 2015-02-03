@@ -1,9 +1,9 @@
 pkgname=jibber
-pkgver=20141017
+pkgver=21.405d41d
 pkgrel=1
 pkgdesc="Notification backend for Jira WebHooks to Jabber"
 url="https://github.com/seletskiy/jibber"
-arch=('i686', 'x86_64')
+arch=('i686' 'x86_64')
 license=('GPL')
 makedepends=('go')
 
@@ -20,8 +20,8 @@ backup=(
 )
 
 pkgver() {
-    cd "$srcdir/$pkgname"
-    git log -1 --format="%cd" --date=short | sed 's|-||g'
+    cd "${pkgname}"
+    echo $(git rev-list --count master).$(git rev-parse --short master)
 }
 
 build() {
