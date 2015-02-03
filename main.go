@@ -172,8 +172,20 @@ func (h webHookHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	_, err = h.output.Write([]byte(msg))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		log.Fatal("error writing to output:", err)
+		log.Printf("error writing to output:", err)
+		if _, ok := h.output.(*xmppCommon); ok {
+			if err := h.output.(*xmppCommon).Connect(); err != nil {
+				w.WriteHeader(http.StatusInternalServerError)
+				log.Fatal(err)
+			} else {
+				log.Printf("reconnected")
+				_, err = h.output.Write([]byte(msg))
+				if err != nil {
+					w.WriteHeader(http.StatusInternalServerError)
+					log.Fatal(err)
+				}
+			}
+		}
 	}
 
 	w.WriteHeader(http.StatusOK)
