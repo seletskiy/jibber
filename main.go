@@ -39,6 +39,7 @@ type xmppCommon struct {
 	to   string
 	join bool
 	nick string
+	password string
 	opts xmpp.Options
 	talk *xmpp.Client
 	tpl  map[string]*template.Template
@@ -95,7 +96,7 @@ func (output *xmppCommon) Connect() error {
 	output.talk = talk
 
 	if output.join {
-		talk.JoinMUC(output.to, output.nick)
+		talk.JoinProtectedMUC(output.to, output.nick, output.password)
 		log.Printf("xmpp: joined <%s> as <%s>\n", output.to, output.nick)
 	}
 
@@ -217,6 +218,7 @@ func main() {
 			to:   args["--to"].(string),
 			join: args["--join"].(bool),
 			nick: args["--nick"].(string),
+			password: args["--mucpass"].(string),
 			opts: xmpp.Options{
 				Host:          args["--host"].(string),
 				User:          args["--user"].(string),
@@ -292,6 +294,7 @@ Options:
   --host HOSTNAME       {xmpp} Jabber server hostname.
   --user USERNAME       {xmpp} Username to log in.
   --pass PASSWORD       {xmpp} Password for that username.
+  --mucpass PASSWORD    {xmpp} Password for protected MUC
   --no-tls              {xmpp} Do not use TLS [default: false].
   --no-verify-tls-host  {xmpp} Do not verify certificate hostname [default: false].
   --start-tls           {xmpp} Use STARTTLS if server support it [default: false].
