@@ -1,0 +1,6 @@
+github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815 h1:bWDMxwH3px2JBh6AyO7hdCn/PkvCZXii8TGj7sbtEbQ=
+github.com/docopt/docopt-go v0.0.0-20180111231733-ee0de3bc6815/go.mod h1:WwZ+bS3ebgob9U8Nd0kOddGdZWjyMGR8Wziv+TBNwSE=
+github.com/mattn/go-xmpp v0.0.0-20200128155807-a86b6abcb3ad h1:ntj2CDcRNjFht20llTwIwwguKa00u0UCLtF2J5+Gmxo=
+github.com/mattn/go-xmpp v0.0.0-20200128155807-a86b6abcb3ad/go.mod h1:Cs5mF0OsrRRmhkyOod//ldNPOwJsrBvJ+1WRspv0xoc=
+github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24 h1:uH11ZedM7Tr0oK5/4+aTvnEdGMgJD+Duh2yZJtA3M2Q=
+github.com/seletskiy/tplutil v0.0.0-20160311115833-8cd6d8f15a24/go.mod h1:F8CBHSOjnzjx9EeXyWJTAzJyVxN+Y8JH2WjLMn4utiw=
