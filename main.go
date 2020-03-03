@@ -95,7 +95,7 @@ func (output *xmppCommon) Connect() error {
 	output.talk = talk
 
 	if output.join {
-		talk.JoinMUC(output.to, output.nick)
+		talk.JoinMUCNoHistory(output.to, output.nick)
 		log.Printf("xmpp: joined <%s> as <%s>\n", output.to, output.nick)
 	}
 
@@ -103,7 +103,7 @@ func (output *xmppCommon) Connect() error {
 }
 
 func (output *xmppCommon) Write(p []byte) (n int, err error) {
-	msgType := "normal"
+	msgType := "chat"
 	if output.join {
 		msgType = "groupchat"
 	}
