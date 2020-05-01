@@ -120,6 +120,15 @@ stdout
 
 Launch jibber to listen (default port is 65432).
 
+#### Test using curl
+You can use curl to test your message templates
+```
+curl --header "Content-Type: application/json" \
+  --request POST \
+  --data "{\"webhookEvent\": \"example\", \"msg\": \"foobar\"}" \
+  http://localhost:65432
+```
+
 ### Configure Jira
 
 Go to Administration/System/WebHooks and add WebHook, like this:
