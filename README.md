@@ -128,3 +128,9 @@ Go to Administration/System/WebHooks and add WebHook, like this:
 
 After that, you should see notifications in your specified room when issues in
 specified project are changed.
+
+Contributors
+============
+
+* Egor Kovetskiy (@kovetskiy)
+* Anton Schubert (@iSchluff)
